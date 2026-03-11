@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Book Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="container">
+    <h1>📚 My Book Tracker</h1>
+
+    <form id="bookForm">
+      <input type="text" id="title" placeholder="Book Title" required>
+      <input type="text" id="author" placeholder="Author" required>
+      <textarea id="notes" placeholder="Personal notes or review..."></textarea>
+      
+      <select id="status">
+        <option value="Want to Read">Want to Read</option>
+        <option value="Reading">Reading</option>
+        <option value="Read">Read</option>
+      </select>
+
+      <button type="submit">Add to List</button>
+    </form>
+
+    <hr>
+
+    <div class="filter-tabs">
+      <button class="tab active" onclick="filterBooks('all', this)">All</button>
+      <button class="tab" onclick="filterBooks('Read', this)">Read</button>
+      <button class="tab" onclick="filterBooks('Reading', this)">Reading</button>
+      <button class="tab" onclick="filterBooks('Want to Read', this)">To Read</button>
+    </div>
+
+    <ul id="bookList"></ul>
+  </div>
+
+  <script>
+    const form = document.getElementById("bookForm");
+    const bookList = document.getElementById("bookList");
+    let allBooks = []; // Local copy of data for fast filtering
+
+    // 1. FETCH BOOKS FROM SERVER
+    async function loadBooks() {
+      const res = await fetch("/books");
+      allBooks = await res.json();
+      displayBooks(allBooks); // Shows all by default
+    }
+
+    // 2. DISPLAY BOOKS TO UI
+    function displayBooks(booksToDisplay) {
+      bookList.innerHTML = "";
+      
+      if (booksToDisplay.length === 0) {
+        bookList.innerHTML = "<p class='empty-msg'>No books found in this category.</p>";
+        return;
+      }
+
+      booksToDisplay.forEach(book => {
+        const li = document.createElement("li");
+        const statusClass = book.status.toLowerCase().replace(/\s/g, "");
+
+        li.innerHTML = `
+          <div class="book-info">
+            <b class="book-title">${book.title}</b>
+            <small>By ${book.author}</small>
+            <p class="notes-text">${book.notes || "No notes yet."}</p>
+          </div>
+
+          <div class="actions">
+            <select class="status-dropdown ${statusClass}" onchange="updateStatus('${book._id}', this.value)">
+              <option value="Want to Read" ${book.status === 'Want to Read' ? 'selected' : ''}>To Read</option>
+              <option value="Reading" ${book.status === 'Reading' ? 'selected' : ''}>Reading</option>
+              <option value="Read" ${book.status === 'Read' ? 'selected' : ''}>Read</option>
+            </select>
+            <button class="delete-btn" onclick="deleteBook('${book._id}')">🗑️</button>
+          </div>
+        `;
+        bookList.appendChild(li);
+      });
+    }
+
+    // 3. FILTER LOGIC
+    function filterBooks(status, element) {
+      // Update UI for active tab
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      element.classList.add('active');
+
+      if (status === 'all') {
+        displayBooks(allBooks);
+      } else {
+        const filtered = allBooks.filter(b => b.status === status);
+        displayBooks(filtered);
+      }
+    }
+
+    // 4. ADD BOOK
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const book = {
+        title: document.getElementById("title").value,
+        author: document.getElementById("author").value,
+        notes: document.getElementById("notes").value,
+        status: document.getElementById("status").value
+      };
+
+      await fetch("/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(book)
+      });
+
+      form.reset();
+      loadBooks();
+    });
+
+    // 5. UPDATE STATUS
+    async function updateStatus(id, newStatus) {
+      await fetch(`/books/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus })
+      });
+      loadBooks(); 
+    }
+
+    // 6. DELETE BOOK
+    async function deleteBook(id) {
+      if (confirm("Remove this book?")) {
+        await fetch(`/books/${id}`, { method: "DELETE" });
+        loadBooks();
+      }
+    }
+
+    loadBooks();
+  </script>
+</body>
+</html>

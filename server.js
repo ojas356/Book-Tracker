@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 import express from 'express';
 import mongoose from 'mongoose';
 import dns from "dns";
@@ -14,7 +16,7 @@ app.use(express.json());
 app.use(express.static("public")); // Serves index.html and styles.css
 
 // MongoDB Connection
-const DbURL = "mongodb+srv://ojas_db:Oo030506@cluster0.3i4t5he.mongodb.net/test_db";
+const DbURL = "process.env.MONGO_URI";
 
 mongoose.connect(DbURL)
     .then(() => console.log("Database connected successfully..."))
